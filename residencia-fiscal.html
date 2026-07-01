@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>¿Soy residente fiscal en Colombia? — Dairo Impuestos</title>
+  <meta name="description" content="Verifica en menos de 2 minutos si eres residente fiscal en Colombia. Herramienta gratuita basada en el Artículo 10 del Estatuto Tributario." />
+  <meta property="og:title" content="¿Soy residente fiscal en Colombia? — Dairo Impuestos" />
+  <meta property="og:description" content="Verifica en menos de 2 minutos si eres residente fiscal en Colombia. Herramienta gratuita basada en el Art. 10 ET." />
+  <meta property="og:type" content="website" />
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #F4F4F4;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    #root {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 16px 40px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      width: 100%;
+      max-width: 560px;
+      padding: 28px 24px;
+    }
+    footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 12px;
+      color: #999;
+    }
+    footer a { color: #E8671A; text-decoration: none; }
+    @media (max-width: 480px) {
+      .card { padding: 20px 16px; border-radius: 12px; }
+      #root { padding: 12px 8px 32px; }
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<footer>
+  Herramienta gratuita por <a href="https://instagram.com/dairo_impuestos" target="_blank">@dairo_impuestos</a> &nbsp;·&nbsp;
+  Basada en el Art. 10 del Estatuto Tributario colombiano &nbsp;·&nbsp;
+  Resultado orientativo, no reemplaza asesoría profesional
+</footer>
+
+<script type="text/babel">
+const NARANJA = "#E8671A";
+const NARANJA_CLARO = "#FDF0E8";
+const GRIS_OSCURO = "#3A3A3A";
+const GRIS_MEDIO = "#6B6B6B";
+const GRIS_CLARO = "#F4F4F4";
+const VERDE = "#1A7A4A";
+const VERDE_CLARO = "#EAF5EE";
+const ROJO = "#B03020";
+const ROJO_CLARO = "#FDEDEB";
+const AMARILLO = "#7A5C00";
+const AMARILLO_CLARO = "#FFF8E1";
+
+const PREGUNTAS_EXTRANJERO = [
+  {
+    id: "dias",
+    pregunta: "¿Ha permanecido en Colombia más de 183 días en los últimos 365 días?",
+    ayuda: "No tienen que ser días seguidos. Se cuentan los días de entrada y salida del país. Si los 183 días recaen en dos años gravables, la residencia aplica a partir del segundo año.",
+  },
+];
+
+const PREGUNTAS_COLOMBIANO = [
+  {
+    id: "dias",
+    pregunta: "¿Ha permanecido en Colombia más de 183 días en los últimos 365 días?",
+    ayuda: "No tienen que ser días seguidos. Se cuentan los días de entrada y salida del país. Si los 183 días recaen en dos años gravables, la residencia aplica a partir del segundo año.",
+  },
+  {
+    id: "diplomatico",
+    pregunta: "¿Trabaja para el Estado colombiano en el exterior (embajadas, consulados, misiones diplomáticas)?",
+    ayuda: "Aplica cuando usted o su familia están vinculados al servicio exterior colombiano y están exentos de tributar en el país de la misión (Convenciones de Viena).",
+  },
+  {
+    id: "familia",
+    pregunta: "¿Su pareja o sus hijos menores de edad viven en Colombia?",
+    ayuda: "Incluye cónyuge o compañero/a permanente no separado legalmente. Los hijos deben ser menores de edad y depender económicamente de usted.",
+  },
+  {
+    id: "ingresos_co",
+    pregunta: "¿El 50% o más de sus ingresos provienen de Colombia?",
+    ayuda: "Ejemplo: salario de empresa colombiana, arriendos de propiedades en Colombia, honorarios por servicios prestados en el país.",
+  },
+  {
+    id: "bienes_co",
+    pregunta: "¿El 50% o más de sus bienes o activos están en Colombia o son administrados desde acá?",
+    ayuda: "Incluye propiedades, cuentas bancarias, inversiones y vehículos ubicados en Colombia o gestionados desde el país.",
+  },
+  {
+    id: "paraiso",
+    pregunta: "¿El país donde vive actualmente es considerado un paraíso fiscal por Colombia?",
+    ayuda: "Colombia tiene una lista oficial (Decreto 1966/2014). Ejemplos: Panamá, Bermudas, Islas Caimán, Mónaco. Si no está seguro, responda No.",
+  },
+];
+
+const PREGUNTAS_PARAGRAFO2 = [
+  {
+    id: "ingresos_ext",
+    pregunta: "¿El 50% o más de sus ingresos anuales provienen del país donde usted vive?",
+    ayuda: "Se mide sobre el total de sus ingresos del año. Si la mayor parte de sus ingresos son de su país de residencia actual, esto puede cambiar su situación fiscal.",
+  },
+  {
+    id: "activos_ext",
+    pregunta: "¿El 50% o más de sus activos (bienes, inversiones, cuentas) están en el país donde usted vive?",
+    ayuda: "Si la mayor parte de su patrimonio está en el exterior y no en Colombia, esto puede cambiar su situación fiscal.",
+  },
+];
+
+function App() {
+  const [pantalla, setPantalla] = React.useState("intro");
+  const [nacionalidad, setNacionalidad] = React.useState(null);
+  const [indicePregunta, setIndicePregunta] = React.useState(0);
+  const [resultado, setResultado] = React.useState(null);
+  const [historial, setHistorial] = React.useState([]);
+  const [fase, setFase] = React.useState("principal");
+  const [literalActivado, setLiteralActivado] = React.useState(null);
+  const [indiceP2, setIndiceP2] = React.useState(0);
+
+  const preguntasActivas = nacionalidad === "extranjero" ? PREGUNTAS_EXTRANJERO : PREGUNTAS_COLOMBIANO;
+  const preguntaActual = fase === "principal" ? preguntasActivas[indicePregunta] : PREGUNTAS_PARAGRAFO2[indiceP2];
+  const totalPrincipal = preguntasActivas.length;
+  const porcentaje = fase === "principal"
+    ? Math.round((indicePregunta / totalPrincipal) * 100)
+    : Math.round(((totalPrincipal + indiceP2) / (totalPrincipal + 2)) * 100);
+
+  const responder = (siONo) => {
+    setHistorial(h => [...h, { fase, id: preguntaActual.id, indice: fase === "principal" ? indicePregunta : indiceP2, valor: siONo }]);
+
+    if (fase === "principal") {
+      const id = preguntaActual.id;
+
+      if (id === "dias" && siONo) {
+        setResultado({ tipo: "residente", emoji: "🏠", titulo: "Es residente fiscal en Colombia", descripcion: "Ha permanecido más de 183 días en Colombia en los últimos 365 días. Esto lo convierte automáticamente en residente fiscal, sin importar su nacionalidad.", implicacion: "Debe declarar renta en Colombia por TODOS sus ingresos: los de Colombia y los del exterior.", norma: "Art. 10, numeral 1 — Estatuto Tributario" });
+        setPantalla("resultado"); return;
+      }
+      if (id === "dias" && !siONo && nacionalidad === "extranjero") {
+        setResultado({ tipo: "no_residente", emoji: "✈️", titulo: "No es residente fiscal en Colombia", descripcion: "Como ciudadano extranjero con menos de 183 días en Colombia, no cumple el criterio de residencia fiscal.", implicacion: "Solo tributa en Colombia por ingresos de fuente colombiana (trabajo en Colombia, arriendos de propiedades en el país, etc.).", norma: "Art. 10 — Estatuto Tributario" });
+        setPantalla("resultado"); return;
+      }
+      if (id === "diplomatico" && siONo) {
+        setResultado({ tipo: "residente", emoji: "🏛️", titulo: "Es residente fiscal en Colombia", descripcion: "Los colombianos vinculados al servicio exterior del Estado son considerados residentes fiscales, aunque estén exentos de tributar en el país donde están en misión.", implicacion: "Debe declarar renta en Colombia por TODOS sus ingresos: los de Colombia y los del exterior.", norma: "Art. 10, numeral 2 — Estatuto Tributario", alerta: "Debe informar esta situación al agente retenedor para que no le practiquen retención en la fuente en Colombia." });
+        setPantalla("resultado"); return;
+      }
+      const literalesVinculo = ["familia", "ingresos_co", "bienes_co"];
+      if (literalesVinculo.includes(id) && siONo) {
+        setLiteralActivado(id); setFase("paragrafo2"); setIndiceP2(0); return;
+      }
+      if (id === "paraiso" && siONo) {
+        setResultado({ tipo: "residente", emoji: "🏠", titulo: "Es residente fiscal en Colombia", descripcion: "Aunque vive en el exterior, Colombia considera residente fiscal a quien reside en un paraíso fiscal. Este literal no admite la excepción del Parágrafo 2.", implicacion: "Debe declarar renta en Colombia por TODOS sus ingresos: los de Colombia y los del exterior.", norma: "Art. 10, numeral 3, literal f — Estatuto Tributario" });
+        setPantalla("resultado"); return;
+      }
+      if (!siONo) {
+        if (indicePregunta < preguntasActivas.length - 1) { setIndicePregunta(i => i + 1); }
+        else {
+          setResultado({ tipo: "no_residente", emoji: "✈️", titulo: "No es residente fiscal en Colombia", descripcion: "Aunque es colombiano, no cumple ninguno de los criterios que generan residencia fiscal en Colombia.", implicacion: "Solo tributa en Colombia por ingresos de fuente colombiana. Le recomendamos verificar sus obligaciones tributarias en el país donde reside.", norma: "Art. 10 — Estatuto Tributario" });
+          setPantalla("resultado");
+        }
+      } else {
+        if (indicePregunta < preguntasActivas.length - 1) setIndicePregunta(i => i + 1);
+      }
+      return;
+    }
+
+    if (fase === "paragrafo2") {
+      if (siONo) {
+        const desc = { ingresos_ext: "El 50% o más de sus ingresos provienen del país donde vive. Esto activa la excepción del Parágrafo 2, que anula el criterio del numeral 3 que había cumplido.", activos_ext: "El 50% o más de sus activos están en el país donde vive. Esto activa la excepción del Parágrafo 2, que anula el criterio del numeral 3 que había cumplido." };
+        setResultado({ tipo: "no_residente", emoji: "✈️", titulo: "No es residente fiscal en Colombia", descripcion: desc[preguntaActual.id], implicacion: "Aunque cumple un criterio del numeral 3, el Parágrafo 2 lo excluye de la residencia fiscal porque su centro económico está en el exterior. Solo tributa en Colombia por ingresos de fuente colombiana.", norma: "Art. 10, numeral 3 + Parágrafo 2 (Ley 1739/2014) — Estatuto Tributario", alerta: "Debe acreditar su residencia en el exterior ante la DIAN mediante certificado de residencia fiscal emitido por el país donde reside." });
+        setPantalla("resultado"); return;
+      }
+      if (indiceP2 < PREGUNTAS_PARAGRAFO2.length - 1) { setIndiceP2(i => i + 1); }
+      else {
+        const textos = { familia: { desc: "su pareja o hijos menores de edad viven en Colombia y no logra acreditar el Parágrafo 2.", norma: "Art. 10, numeral 3, literal a — Estatuto Tributario" }, ingresos_co: { desc: "el 50% o más de sus ingresos provienen de Colombia y no logra acreditar el Parágrafo 2.", norma: "Art. 10, numeral 3, literal b — Estatuto Tributario" }, bienes_co: { desc: "el 50% o más de sus bienes o activos están en Colombia y no logra acreditar el Parágrafo 2.", norma: "Art. 10, numeral 3, literales c y d — Estatuto Tributario" } };
+        const t = textos[literalActivado] || { desc: "cumple un criterio de vínculo con Colombia.", norma: "Art. 10, numeral 3 — Estatuto Tributario" };
+        setResultado({ tipo: "residente", emoji: "🏠", titulo: "Es residente fiscal en Colombia", descripcion: `Aunque vive en el exterior, ${t.desc}`, implicacion: "Debe declarar renta en Colombia por TODOS sus ingresos: los de Colombia y los del exterior.", norma: t.norma, alerta: "Debe acreditar su residencia en el exterior ante la DIAN mediante certificado de residencia fiscal emitido por el país donde reside (Parágrafo 1, Art. 10 ET)." });
+        setPantalla("resultado");
+      }
+    }
+  };
+
+  const volver = () => {
+    if (historial.length === 0) return;
+    const ultimo = historial[historial.length - 1];
+    setHistorial(h => h.slice(0, -1));
+    if (ultimo.fase === "principal") { setFase("principal"); setIndicePregunta(ultimo.indice); setLiteralActivado(null); }
+    else { if (ultimo.indice === 0) { setFase("principal"); setLiteralActivado(null); } else { setFase("paragrafo2"); setIndiceP2(ultimo.indice); } }
+  };
+
+  const reiniciar = () => { setPantalla("intro"); setNacionalidad(null); setIndicePregunta(0); setResultado(null); setHistorial([]); setFase("principal"); setLiteralActivado(null); setIndiceP2(0); };
+
+  const BtnOpcion = ({ onClick, emoji, titulo, sub }) => {
+    const [hover, setHover] = React.useState(false);
+    return (
+      <button onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+        style={{ width: "100%", display: "flex", alignItems: "center", background: hover ? NARANJA_CLARO : "#fff", border: `2px solid ${hover ? NARANJA : "#E5E5E5"}`, borderRadius: 10, padding: "16px 20px", marginBottom: 12, cursor: "pointer", textAlign: "left", gap: 14, transition: "all 0.15s" }}>
+        <span style={{ fontSize: 28 }}>{emoji}</span>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: GRIS_OSCURO }}>{titulo}</div>
+          {sub && <div style={{ fontSize: 12, color: GRIS_MEDIO, marginTop: 2 }}>{sub}</div>}
+        </div>
+      </button>
+    );
+  };
+
+  const BtnRespuesta = ({ label, valor, emoji, hoverColor, hoverBg }) => {
+    const [hover, setHover] = React.useState(false);
+    return (
+      <button onClick={() => responder(valor)} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+        style={{ width: "100%", display: "flex", alignItems: "center", background: hover ? hoverBg : "#fff", border: `2px solid ${hover ? hoverColor : "#E5E5E5"}`, borderRadius: 10, padding: "16px 20px", marginBottom: 12, cursor: "pointer", textAlign: "left", gap: 14, fontSize: 16, fontWeight: 700, transition: "all 0.15s" }}>
+        <span style={{ fontSize: 22 }}>{emoji}</span>
+        <span style={{ color: GRIS_OSCURO }}>{label}</span>
+      </button>
+    );
+  };
+
+  const Header = () => (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+      <div style={{ width: 4, height: 44, background: NARANJA, borderRadius: 2, flexShrink: 0 }} />
+      <div>
+        <div style={{ fontSize: 10, color: NARANJA, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase" }}>Dairo Impuestos</div>
+        <div style={{ fontSize: 12, color: GRIS_MEDIO, marginTop: 2 }}>Verificador · Residencia Fiscal · Art. 10 ET</div>
+      </div>
+    </div>
+  );
+
+  if (pantalla === "intro") return (
+    <div className="card">
+      <Header />
+      <div style={{ borderRadius: 12, overflow: "hidden", border: `2px solid ${NARANJA}`, marginBottom: 20 }}>
+        <div style={{ background: NARANJA, padding: "28px 24px" }}>
+          <div style={{ fontSize: 28, fontWeight: 900, color: "#fff", lineHeight: 1.15, marginBottom: 10 }}>¿Soy residente<br />fiscal en Colombia?</div>
+          <p style={{ color: "rgba(255,255,255,0.88)", fontSize: 14, lineHeight: 1.65, margin: 0 }}>Descúbralo en menos de 2 minutos respondiendo preguntas simples y claras.</p>
+        </div>
+        <div style={{ background: NARANJA_CLARO, padding: "13px 20px" }}>
+          <span style={{ fontSize: 13, color: GRIS_OSCURO }}>📋 Basado en el <strong>Art. 10 ET</strong> (Ley 1607/2012 + Parágrafo 2 Ley 1739/2014). Resultado orientativo.</span>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 22 }}>
+        {[{ emoji: "🌍", texto: "Colombianos en el exterior" }, { emoji: "🏢", texto: "Extranjeros en Colombia" }, { emoji: "✈️", texto: "Viajeros frecuentes" }, { emoji: "💼", texto: "Ingresos en dos países" }].map((item, i) => (
+          <div key={i} style={{ background: GRIS_CLARO, borderRadius: 8, padding: "11px 13px", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 18 }}>{item.emoji}</span>
+            <span style={{ fontSize: 12, color: GRIS_MEDIO, lineHeight: 1.4 }}>{item.texto}</span>
+          </div>
+        ))}
+      </div>
+      <button onClick={() => setPantalla("nacionalidad")} style={{ width: "100%", background: NARANJA, color: "#fff", border: "none", borderRadius: 10, padding: "16px 24px", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>
+        Comenzar verificación →
+      </button>
+    </div>
+  );
+
+  if (pantalla === "nacionalidad") return (
+    <div className="card">
+      <Header />
+      <div style={{ fontSize: 10, color: NARANJA, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", marginBottom: 6 }}>Pregunta inicial</div>
+      <div style={{ fontSize: 21, fontWeight: 800, marginBottom: 10, lineHeight: 1.25, color: GRIS_OSCURO }}>¿Cuál es su nacionalidad?</div>
+      <p style={{ fontSize: 14, color: GRIS_MEDIO, marginBottom: 24, lineHeight: 1.6 }}>Esto determina qué criterios aplican en su caso.</p>
+      <BtnOpcion onClick={() => { setNacionalidad("colombiano"); setIndicePregunta(0); setFase("principal"); setPantalla("preguntas"); }} emoji="🇨🇴" titulo="Soy colombiano/a" sub="Incluye colombianos con doble ciudadanía" />
+      <BtnOpcion onClick={() => { setNacionalidad("extranjero"); setIndicePregunta(0); setFase("principal"); setPantalla("preguntas"); }} emoji="🌍" titulo="Soy extranjero/a" sub="No tengo nacionalidad colombiana" />
+    </div>
+  );
+
+  if (pantalla === "preguntas") {
+    const esFaseP2 = fase === "paragrafo2";
+    return (
+      <div className="card">
+        <Header />
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: GRIS_MEDIO }}>{esFaseP2 ? "Verificación adicional · Parágrafo 2" : `Pregunta ${indicePregunta + 1} de ${preguntasActivas.length}`}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: NARANJA }}>{porcentaje}%</span>
+          </div>
+          <div style={{ height: 5, background: "#E5E5E5", borderRadius: 3 }}>
+            <div style={{ height: "100%", width: `${porcentaje}%`, background: NARANJA, borderRadius: 3, transition: "width 0.35s ease" }} />
+          </div>
+        </div>
+        {esFaseP2 && (
+          <div style={{ background: AMARILLO_CLARO, border: "1px solid #F0CC60", borderRadius: 8, padding: "11px 15px", marginBottom: 16, display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>⚖️</span>
+            <span style={{ fontSize: 12, color: AMARILLO, lineHeight: 1.6 }}><strong>Parágrafo 2 — Ley 1739/2014:</strong> Aunque cumple un criterio de residencia, puede quedar excluido si su centro económico está en el exterior.</span>
+          </div>
+        )}
+        <div style={{ background: NARANJA_CLARO, borderLeft: `4px solid ${NARANJA}`, borderRadius: "0 12px 12px 0", padding: "20px 20px", marginBottom: 20 }}>
+          <div style={{ fontSize: 17, fontWeight: 800, lineHeight: 1.35, marginBottom: 10, color: GRIS_OSCURO }}>{preguntaActual.pregunta}</div>
+          <div style={{ fontSize: 13, color: GRIS_MEDIO, lineHeight: 1.65, display: "flex", gap: 8 }}>
+            <span>💡</span><span>{preguntaActual.ayuda}</span>
+          </div>
+        </div>
+        <BtnRespuesta label="Sí" valor={true} emoji="✅" hoverColor={VERDE} hoverBg={VERDE_CLARO} />
+        <BtnRespuesta label="No" valor={false} emoji="❌" hoverColor={ROJO} hoverBg={ROJO_CLARO} />
+        {historial.length > 0 && (
+          <button onClick={volver} style={{ background: "none", border: "none", color: GRIS_MEDIO, fontSize: 13, cursor: "pointer", padding: "10px 0", marginTop: 2 }}>← Volver a la pregunta anterior</button>
+        )}
+      </div>
+    );
+  }
+
+  if (pantalla === "resultado" && resultado) {
+    const esResidente = resultado.tipo === "residente";
+    return (
+      <div className="card">
+        <Header />
+        <div style={{ height: 5, background: NARANJA, borderRadius: 3, marginBottom: 22 }} />
+        <div style={{ background: esResidente ? ROJO_CLARO : VERDE_CLARO, borderLeft: `4px solid ${esResidente ? ROJO : VERDE}`, borderRadius: "0 12px 12px 0", padding: "24px 22px", marginBottom: 14 }}>
+          <div style={{ fontSize: 34, marginBottom: 10 }}>{resultado.emoji}</div>
+          <div style={{ fontSize: 21, fontWeight: 900, color: esResidente ? ROJO : VERDE, marginBottom: 10, lineHeight: 1.2 }}>{resultado.titulo}</div>
+          <p style={{ fontSize: 14, lineHeight: 1.75, color: GRIS_OSCURO, margin: 0 }}>{resultado.descripcion}</p>
+        </div>
+        <div style={{ background: "#fff", border: "2px solid #E5E5E5", borderRadius: 10, padding: "16px 18px", marginBottom: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: NARANJA, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 7 }}>¿Qué significa para usted?</div>
+          <p style={{ fontSize: 14, lineHeight: 1.75, color: GRIS_OSCURO, margin: 0 }}>{resultado.implicacion}</p>
+        </div>
+        {resultado.alerta && (
+          <div style={{ background: AMARILLO_CLARO, border: "1px solid #F0CC60", borderRadius: 8, padding: "11px 15px", marginBottom: 12, display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <span style={{ fontSize: 15, flexShrink: 0 }}>⚠️</span>
+            <span style={{ fontSize: 13, color: AMARILLO, lineHeight: 1.6 }}>{resultado.alerta}</span>
+          </div>
+        )}
+        <div style={{ background: GRIS_CLARO, borderRadius: 8, padding: "10px 15px", marginBottom: 16, display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ fontSize: 14 }}>📋</span>
+          <span style={{ fontSize: 11, color: GRIS_MEDIO }}>Fundamento legal: <strong>{resultado.norma}</strong></span>
+        </div>
+        <div style={{ background: NARANJA_CLARO, border: `1px solid ${NARANJA}`, borderRadius: 10, padding: "15px 18px", marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: GRIS_OSCURO }}>¿Necesita asesoría para su caso específico?</div>
+          <div style={{ fontSize: 13, color: GRIS_MEDIO, lineHeight: 1.65 }}>
+            Este resultado es orientativo. Para asesoría personalizada:<br />
+            <a href="https://instagram.com/dairo_impuestos" target="_blank" style={{ color: NARANJA, fontWeight: 700, textDecoration: "none" }}>@dairo_impuestos</a>
+            {" "}· WhatsApp <a href="https://wa.me/573014509375" target="_blank" style={{ color: NARANJA, fontWeight: 700, textDecoration: "none" }}>301 450 9375</a>
+          </div>
+        </div>
+        <button onClick={reiniciar}
+          style={{ width: "100%", background: "transparent", color: GRIS_OSCURO, border: "2px solid #E5E5E5", borderRadius: 10, padding: "14px 24px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = NARANJA}
+          onMouseLeave={e => e.currentTarget.style.borderColor = "#E5E5E5"}>
+          ↩ Verificar otro caso
+        </button>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>
